@@ -6,9 +6,11 @@ Does the system prompt persona affect how well Claude writes code? This tool ben
 
 ## Results
 
+### Claude Haiku 4.5
+
 Model: `claude-haiku-4-5` | 164 HumanEval problems | 10 runs per combination | 13,120 total API calls | $57 total cost
 
-### pass@k by Condition and Thinking Mode
+#### pass@k by Condition and Thinking Mode
 
 | Condition | Thinking | pass@1 | pass@5 | pass@10 | Avg In Tok | Avg Out Tok | Cost |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -21,13 +23,28 @@ Model: `claude-haiku-4-5` | 164 HumanEval problems | 10 runs per combination | 1
 | mickey | disabled | 95.8% | 96.6% | 97.0% | 229 | 246 | $2.39 |
 | mickey | enabled | 98.1% | 99.4% | 99.4% | 259 | 1,367 | $11.63 |
 
-### Key Findings
+#### Key Findings
 
 **Personas have no meaningful effect on code quality.** All four conditions land within a ~1.3pp band for pass@1 (95.2%-96.5% disabled, 98.0%-98.5% enabled). The differences are within noise for this sample size. A "GigaChad CodeLord 9000" persona generates code just as well as no persona at all.
 
 **Thinking mode provides a consistent ~2.5pp boost** across all conditions (95.8% -> 98.5% for baseline pass@1), at the cost of ~5x more output tokens and ~5x higher cost. With thinking enabled, all conditions converge to 99.3-99.4% at pass@5.
 
 **The model nearly saturates HumanEval.** At pass@10 with thinking enabled, all conditions hit 99.4%, meaning nearly every problem is solved at least once in 10 attempts. The remaining failures are a handful of problems where the model consistently gets the algorithm wrong (e.g., HumanEval/10 palindrome direction, HumanEval/145 sort logic).
+
+### Claude 3 Haiku (legacy, no thinking)
+
+Model: `claude-3-haiku-20240307` | 164 HumanEval problems | 10 runs per condition | 6,560 total API calls | $1.94 total cost
+
+Older-generation model included to see how a previous Haiku holds up. Claude 3 Haiku does not support extended thinking, so only `disabled` mode was tested.
+
+| Condition | Thinking | pass@1 | pass@5 | pass@10 | Avg In Tok | Avg Out Tok | Cost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | disabled | 73.4% | 77.3% | 78.0% | 209 | 196 | $0.49 |
+| professional | disabled | 72.7% | 75.6% | 76.2% | 247 | 195 | $0.50 |
+| absurd | disabled | 67.9% | 73.5% | 75.0% | 324 | 148 | $0.44 |
+| mickey | disabled | 74.9% | 77.7% | 78.0% | 229 | 204 | $0.51 |
+
+The generational gap is stark: Haiku 4.5 without thinking (95.8% pass@1) outperforms Haiku 3 by over 20 percentage points. Interestingly, the absurd persona hurts Haiku 3 noticeably (~6pp below baseline), suggesting older models are more susceptible to persona distractions. Mickey Mouse, on the other hand, edges out baseline slightly -- though this is likely noise at this sample size.
 
 ## Experimental Design
 
