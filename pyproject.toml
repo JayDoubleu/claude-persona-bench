@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Benchmark whether system prompt personas affect Claude's code generation quality"
 requires-python = ">=3.11"
 dependencies = [
-    "anthropic>=0.42",
+    "anthropic>=0.52",
     "click>=8.0",
     "rich>=13.0",
 ]

@@ -22,10 +22,41 @@ MAX_RETRIES = 5
 BASE_RETRY_DELAY = 10.0
 RATE_LIMIT_DELAY = 60.0
 
-# Haiku 4.5 pricing (USD per million tokens)
-INPUT_COST_PER_M = 1.0
-OUTPUT_COST_PER_M = 5.0
-THINKING_COST_PER_M = 5.0
+# Pricing (USD per million tokens): (input, output, thinking)
+_MODEL_PRICING: dict[str, tuple[float, float, float]] = {
+    "claude-opus-4-6": (5.0, 25.0, 25.0),
+    "claude-sonnet-4-6": (3.0, 15.0, 15.0),
+    "claude-haiku-4-5": (1.0, 5.0, 5.0),
+    "claude-opus-4-5": (5.0, 25.0, 25.0),
+    "claude-sonnet-4-5": (3.0, 15.0, 15.0),
+    "claude-opus-4-1": (5.0, 25.0, 25.0),
+    "claude-opus-4-0": (5.0, 25.0, 25.0),
+    "claude-sonnet-4-0": (3.0, 15.0, 15.0),
+}
+
+# Models that support adaptive thinking (budget_tokens is deprecated)
+_ADAPTIVE_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6"}
+
+# Models that support budget_tokens thinking
+_BUDGET_THINKING_MODELS = {
+    "claude-opus-4-5", "claude-sonnet-4-5",
+    "claude-opus-4-1", "claude-opus-4-0", "claude-sonnet-4-0",
+}
+
+
+def _get_pricing(model: str) -> tuple[float, float, float]:
+    for prefix, pricing in _MODEL_PRICING.items():
+        if model.startswith(prefix):
+            return pricing
+    return (5.0, 25.0, 25.0)  # default to most expensive
+
+
+def _supports_adaptive(model: str) -> bool:
+    return any(model.startswith(p) for p in _ADAPTIVE_MODELS)
+
+
+def _supports_budget_thinking(model: str) -> bool:
+    return any(model.startswith(p) for p in _BUDGET_THINKING_MODELS)
 
 _client: anthropic.AsyncAnthropic | None = None
 
@@ -33,7 +64,7 @@ _client: anthropic.AsyncAnthropic | None = None
 def _get_client() -> anthropic.AsyncAnthropic:
     global _client
     if _client is None:
-        _client = anthropic.AsyncAnthropic()
+        _client = anthropic.AsyncAnthropic(max_retries=0)
     return _client
 
 
@@ -126,10 +157,20 @@ async def _single_call(
         # API requires temperature=1 when thinking is enabled
         kwargs["temperature"] = 1
         kwargs["max_tokens"] = 16_000
-        kwargs["thinking"] = {
-            "type": "enabled",
-            "budget_tokens": config.thinking_budget_tokens,
-        }
+        if _supports_adaptive(config.model):
+            kwargs["thinking"] = {"type": "adaptive"}
+        elif _supports_budget_thinking(config.model):
+            kwargs["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": config.thinking_budget_tokens,
+            }
+        else:
+            logger.warning(
+                "Model %s does not support thinking; ignoring thinking=enabled",
+                config.model,
+            )
+            kwargs["temperature"] = config.temperature
+            kwargs["max_tokens"] = 1024
     else:
         kwargs["temperature"] = config.temperature
 
@@ -155,17 +196,20 @@ async def _single_call(
 
     thinking_tokens = getattr(response.usage, "thinking_tokens", 0) or 0
 
-    # Cost calculation
+    # Cost calculation (model-aware)
+    input_price, output_price, thinking_price = _get_pricing(config.model)
     cost = (
-        full_input * INPUT_COST_PER_M
-        + output_tokens * OUTPUT_COST_PER_M
-        + thinking_tokens * THINKING_COST_PER_M
+        full_input * input_price
+        + output_tokens * output_price
+        + thinking_tokens * thinking_price
     ) / 1_000_000
 
     # Build error string if needed
     error = None
-    if response.stop_reason == "error":
-        error = "Model returned error stop_reason"
+    if response.stop_reason == "max_tokens":
+        error = "Response truncated (hit max_tokens limit)"
+    elif response.stop_reason == "refusal":
+        error = "Model refused to respond"
     elif not raw_response and not completion:
         error = f"Empty response (stop_reason={response.stop_reason})"
 

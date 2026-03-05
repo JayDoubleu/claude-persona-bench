@@ -6,7 +6,7 @@ Does the system prompt persona affect how well Claude writes code? This tool ben
 
 ## Results
 
-Model: `claude-haiku-4-5-20251001` | 164 HumanEval problems | 10 runs per combination | 13,120 total API calls | $57 total cost
+Model: `claude-haiku-4-5` | 164 HumanEval problems | 10 runs per combination | 13,120 total API calls | $57 total cost
 
 ### pass@k by Condition and Thinking Mode
 
@@ -50,7 +50,7 @@ Four system prompt personas are tested. Each includes a shared task instruction 
 ### Thinking Modes
 
 - **Disabled**: Standard inference (`temperature=0.2`)
-- **Enabled**: Extended thinking with 10k token budget (`temperature=1`, required by API)
+- **Enabled**: Extended thinking (`temperature=1`, required by API). Uses adaptive thinking on Opus 4.6/Sonnet 4.6, budget_tokens on legacy models.
 
 ### Methodology
 

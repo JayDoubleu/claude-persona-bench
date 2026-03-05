@@ -41,7 +41,7 @@ def main() -> None:
 
 
 @main.command()
-@click.option("--model", default="claude-haiku-4-5-20251001", help="Model to use")
+@click.option("--model", default="claude-haiku-4-5", help="Model to use")
 @click.option("--temperature", default=0.2, type=float, help="Sampling temperature (ignored when thinking is enabled)")
 @click.option(
     "--conditions",

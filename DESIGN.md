@@ -7,7 +7,7 @@ Test whether system prompt personas (professional, absurd, none) affect Claude's
 ## Experimental Design
 
 - **4 persona conditions**: baseline (no persona), professional, absurd (GigaChad), mickey (Mickey Mouse)
-- **2 thinking modes**: enabled (budget=10k tokens), disabled
+- **2 thinking modes**: enabled (adaptive on Opus 4.6/Sonnet 4.6, budget_tokens on legacy models), disabled
 - **164 HumanEval problems** per condition
 - **10 runs per combination** for pass@k estimation
 - Total: 164 x 4 x 2 x 10 = 13,120 API calls
@@ -28,7 +28,7 @@ Each phase is a separate CLI command, allowing partial runs and re-evaluation.
 - **Temperature control**: configurable (default 0.2), automatically set to 1.0 when thinking is enabled (API requirement)
 - **File-per-run storage** enables resumability without complex state management
 - **Sandboxed evaluation** uses multiprocessing with timeouts and disabled destructive builtins
-- **Thinking mode** controlled via API's `thinking` parameter (`enabled`/`disabled`)
+- **Thinking mode** controlled via API's `thinking` parameter (adaptive for Opus 4.6/Sonnet 4.6, budget_tokens for legacy models, graceful fallback for unsupported models)
 - **Concurrency** configurable via asyncio.Semaphore (default 5, recommended 20 for Haiku)
 - **Complete function prompting**: model returns the full function in a markdown fence, then body is extracted structurally (no indentation guessing)
 - **Parallel evaluation** via ProcessPoolExecutor for faster test execution

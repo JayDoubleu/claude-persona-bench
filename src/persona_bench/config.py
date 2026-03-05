@@ -8,7 +8,7 @@ from persona_bench.models import Condition, ThinkingMode
 
 @dataclass
 class ExperimentConfig:
-    model: str = "claude-haiku-4-5-20251001"
+    model: str = "claude-haiku-4-5"
     temperature: float = 0.2
     conditions: list[Condition] = field(
         default_factory=lambda: list(Condition),
