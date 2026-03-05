@@ -11,6 +11,7 @@ class Condition(StrEnum):
     PROFESSIONAL = "professional"
     ABSURD = "absurd"
     MICKEY = "mickey"
+    APM_OSS_ARCHITECT = "apm_oss_architect"
 
 
 class ThinkingMode(StrEnum):
