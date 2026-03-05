@@ -49,6 +49,10 @@ _BUDGET_THINKING_MODELS = {
 }
 
 
+def supports_thinking(model: str) -> bool:
+    return _supports_adaptive(model) or _supports_budget_thinking(model)
+
+
 def _get_pricing(model: str) -> tuple[float, float, float]:
     for prefix, pricing in _MODEL_PRICING.items():
         if model.startswith(prefix):
@@ -126,7 +130,7 @@ async def _call_with_retry(
                     key=key,
                     completion="",
                     raw_response="",
-                    error=f"APIStatusError {e.status_code}: {e.message}",
+                    generation_error=f"APIStatusError {e.status_code}: {e.message}",
                 )
 
         except anthropic.APIConnectionError as e:
@@ -139,6 +143,14 @@ async def _call_with_retry(
                     key.task_id,
                 )
                 await asyncio.sleep(BASE_RETRY_DELAY * (attempt + 1))
+
+        except ValueError as e:
+            return RunResult(
+                key=key,
+                completion="",
+                raw_response="",
+                generation_error=str(e),
+            )
 
         except Exception as e:
             last_error = e
@@ -157,7 +169,7 @@ async def _call_with_retry(
         key=key,
         completion="",
         raw_response="",
-        error=f"All {MAX_RETRIES} attempts failed: {last_error}",
+        generation_error=f"All {MAX_RETRIES} attempts failed: {last_error}",
     )
 
 
@@ -176,23 +188,18 @@ async def _single_call(
     }
 
     if key.thinking == ThinkingMode.ENABLED:
+        if not supports_thinking(config.model):
+            raise ValueError(f"Model {config.model} does not support thinking mode")
         # API requires temperature=1 when thinking is enabled
         kwargs["temperature"] = 1
         kwargs["max_tokens"] = 16_000
         if _supports_adaptive(config.model):
             kwargs["thinking"] = {"type": "adaptive"}
-        elif _supports_budget_thinking(config.model):
+        else:
             kwargs["thinking"] = {
                 "type": "enabled",
                 "budget_tokens": config.thinking_budget_tokens,
             }
-        else:
-            logger.warning(
-                "Model %s does not support thinking; falling back to standard mode",
-                config.model,
-            )
-            kwargs["temperature"] = config.temperature
-            kwargs["max_tokens"] = 1024
     else:
         kwargs["temperature"] = config.temperature
 
@@ -225,13 +232,13 @@ async def _single_call(
     ) / 1_000_000
 
     # Build error string if needed
-    error = None
+    generation_error = None
     if response.stop_reason == "max_tokens":
-        error = "Response truncated (hit max_tokens limit)"
+        generation_error = "Response truncated (hit max_tokens limit)"
     elif response.stop_reason == "refusal":
-        error = "Model refused to respond"
+        generation_error = "Model refused to respond"
     elif not raw_response and not completion:
-        error = f"Empty response (stop_reason={response.stop_reason})"
+        generation_error = f"Empty response (stop_reason={response.stop_reason})"
 
     return RunResult(
         key=key,
@@ -242,5 +249,5 @@ async def _single_call(
         thinking_tokens=thinking_tokens,
         cost_usd=cost,
         duration_ms=duration_ms,
-        error=error,
+        generation_error=generation_error,
     )

@@ -28,5 +28,26 @@ def test_timeout():
 def test_blocked_import():
     code = "import os\ndef dangerous():\n    return os.listdir('.')\n"
     test = "def check(f):\n    f()\n"
-    passed, _error = run_sandboxed(code, test, "dangerous")
+    passed, error = run_sandboxed(code, test, "dangerous")
     assert passed is False
+    assert "ImportError" in (error or "")
+
+
+def test_blocked_file_access():
+    code = (
+        "def dangerous():\n"
+        "    with open('README.md', 'r', encoding='utf-8') as f:\n"
+        "        return f.read()\n"
+    )
+    test = "def check(f):\n    f()\n"
+    passed, error = run_sandboxed(code, test, "dangerous")
+    assert passed is False
+    assert "PermissionError" in (error or "")
+
+
+def test_blocked_builtins_import():
+    code = "def dangerous():\n    import builtins\n    return builtins.open('README.md').read()\n"
+    test = "def check(f):\n    f()\n"
+    passed, error = run_sandboxed(code, test, "dangerous")
+    assert passed is False
+    assert "ImportError" in (error or "")

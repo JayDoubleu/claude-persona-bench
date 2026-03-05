@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 import multiprocessing
+import os
+import tempfile
+from multiprocessing.connection import Connection
 from typing import Any
 
 TIMEOUT_SECONDS = 10
 
 # Builtins/modules to disable inside the sandbox
-_DISABLED_BUILTINS = ["exit", "quit"]
+_DISABLED_BUILTINS = ["exit", "quit", "input"]
 _DISABLED_MODULES = [
+    "builtins",
+    "importlib",
+    "io",
     "os",
+    "pathlib",
     "shutil",
     "subprocess",
     "signal",
     "socket",
+    "sys",
+    "tempfile",
     "http",
     "urllib",
     "ftplib",
@@ -27,11 +36,15 @@ _DISABLED_MODULES = [
 _EXEC = exec
 
 
+def _blocked_open(*args: Any, **kwargs: Any) -> Any:
+    raise PermissionError("File access is not allowed in sandbox")
+
+
 def _run_in_sandbox(
     code: str,
     test: str,
     entry_point: str,
-    result_queue: multiprocessing.Queue,  # type: ignore[type-arg]
+    result_conn: Connection,
 ) -> None:
     """Execute code + tests inside a restricted environment."""
     try:
@@ -42,6 +55,7 @@ def _run_in_sandbox(
         # Remove dangerous builtins
         for name in _DISABLED_BUILTINS:
             safe_globals["__builtins__"].pop(name, None)
+        safe_globals["__builtins__"]["open"] = _blocked_open
 
         # Override __import__ to block dangerous modules
         original_import = safe_globals["__builtins__"]["__import__"]
@@ -53,17 +67,23 @@ def _run_in_sandbox(
 
         safe_globals["__builtins__"]["__import__"] = restricted_import
 
-        # Run the completion code, then the test harness
-        _EXEC(code, safe_globals)
-        _EXEC(test, safe_globals)
+        # Run user code in an empty temp working directory to avoid incidental file access.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            os.chdir(tmp_dir)
 
-        # Call the check function (HumanEval convention)
-        if "check" in safe_globals:
-            safe_globals["check"](safe_globals[entry_point])
+            # Run the completion code, then the test harness
+            _EXEC(code, safe_globals)
+            _EXEC(test, safe_globals)
 
-        result_queue.put(("pass", None))
+            # Call the check function (HumanEval convention)
+            if "check" in safe_globals:
+                safe_globals["check"](safe_globals[entry_point])
+
+        result_conn.send(("pass", None))
     except Exception as e:
-        result_queue.put(("fail", f"{type(e).__name__}: {e}"))
+        result_conn.send(("fail", f"{type(e).__name__}: {e}"))
+    finally:
+        result_conn.close()
 
 
 def run_sandboxed(code: str, test: str, entry_point: str) -> tuple[bool, str | None]:
@@ -72,24 +92,29 @@ def run_sandboxed(code: str, test: str, entry_point: str) -> tuple[bool, str | N
     Returns (passed, error_message).
     """
     ctx = multiprocessing.get_context("spawn")
-    result_queue: multiprocessing.Queue[tuple[str, str | None]] = ctx.Queue()
+    parent_conn, child_conn = ctx.Pipe(duplex=False)
     process = ctx.Process(
         target=_run_in_sandbox,
-        args=(code, test, entry_point, result_queue),
+        args=(code, test, entry_point, child_conn),
     )
     process.start()
+    child_conn.close()
     process.join(timeout=TIMEOUT_SECONDS)
 
     if process.is_alive():
         process.kill()
         process.join()
+        parent_conn.close()
         return False, "Timed out"
 
-    if process.exitcode != 0 and result_queue.empty():
+    if process.exitcode != 0 and not parent_conn.poll():
+        parent_conn.close()
         return False, f"Process crashed with exit code {process.exitcode}"
 
-    if result_queue.empty():
+    if not parent_conn.poll():
+        parent_conn.close()
         return False, "No result returned from sandbox"
 
-    status, error = result_queue.get_nowait()
+    status, error = parent_conn.recv()
+    parent_conn.close()
     return status == "pass", error

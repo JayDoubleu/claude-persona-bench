@@ -24,6 +24,7 @@ from persona_bench.results.store import (
     load_all_results,
     update_result,
 )
+from persona_bench.runner.client import supports_thinking
 from persona_bench.runner.engine import generate_all_keys, run_experiment
 from persona_bench.runner.extract import ensure_indented, extract_body
 
@@ -38,6 +39,27 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+def _experiment_dirs(base: Path) -> list[Path]:
+    if not base.exists():
+        return []
+    return [
+        path
+        for path in sorted(base.iterdir(), key=lambda d: d.stat().st_mtime)
+        if path.is_dir() and (path / "runs").exists()
+    ]
+
+
+def _resolve_runs_dir(base: Path, experiment_id: str | None) -> Path | None:
+    if experiment_id:
+        runs_dir = base / experiment_id / "runs"
+        return runs_dir if runs_dir.exists() else None
+
+    experiment_dirs = _experiment_dirs(base)
+    if not experiment_dirs:
+        return None
+    return experiment_dirs[-1] / "runs"
 
 
 @main.command()
@@ -86,6 +108,9 @@ def run(
         results_dir=Path(results_dir),
     )
 
+    if ThinkingMode.ENABLED in config.thinking_modes and not supports_thinking(config.model):
+        raise click.ClickException(f"Model {config.model} does not support thinking mode")
+
     console.print(f"[bold]Experiment ID:[/bold] {config.experiment_id}")
     console.print(f"[bold]Model:[/bold] {config.model}")
     console.print(f"[bold]Conditions:[/bold] {[c.value for c in config.conditions]}")
@@ -128,16 +153,13 @@ def run(
 def evaluate_cmd(experiment_id: str | None, results_dir: str, re_evaluate: bool) -> None:
     """Execute generated code against HumanEval tests."""
     base = Path(results_dir)
-
-    if experiment_id:
-        runs_dir = base / experiment_id / "runs"
-    else:
-        # Find the most recent experiment
-        dirs = sorted(base.iterdir(), key=lambda d: d.stat().st_mtime) if base.exists() else []
-        if not dirs:
+    runs_dir = _resolve_runs_dir(base, experiment_id)
+    if runs_dir is None:
+        if experiment_id:
+            console.print(f"[red]Experiment not found:[/red] {experiment_id}")
+        else:
             console.print("[red]No experiments found.")
-            return
-        runs_dir = dirs[-1] / "runs"
+        return
 
     console.print(f"[bold]Evaluating:[/bold] {runs_dir}")
 
@@ -147,9 +169,9 @@ def evaluate_cmd(experiment_id: str | None, results_dir: str, re_evaluate: bool)
         for r in results:
             if r.passed is False:
                 r.passed = None
-                r.error = None
+                r.evaluation_error = None
                 update_result(runs_dir, r)
-    unevaluated = [r for r in results if r.passed is None and not r.error]
+    unevaluated = [r for r in results if r.passed is None]
     console.print(
         f"[bold]Total results:[/bold] {len(results)}, [bold]To evaluate:[/bold] {len(unevaluated)}"
     )
@@ -171,7 +193,7 @@ def evaluate_cmd(experiment_id: str | None, results_dir: str, re_evaluate: bool)
     for result in unevaluated:
         problem = problem_map.get(result.key.task_id)
         if not problem:
-            result.error = f"Problem {result.key.task_id} not found"
+            result.evaluation_error = f"Problem {result.key.task_id} not found"
             update_result(runs_dir, result)
             continue
         imports, body = extract_body(result.completion)
@@ -190,8 +212,7 @@ def evaluate_cmd(experiment_id: str | None, results_dir: str, re_evaluate: bool)
                 result = future_to_result[future]
                 ok, error = future.result()
                 result.passed = ok
-                if error:
-                    result.error = error
+                result.evaluation_error = error
 
                 update_result(runs_dir, result)
                 evaluated += 1
@@ -226,15 +247,13 @@ def report(
 ) -> None:
     """Generate comparison tables from results."""
     base = Path(results_dir)
-
-    if experiment_id:
-        runs_dir = base / experiment_id / "runs"
-    else:
-        dirs = sorted(base.iterdir(), key=lambda d: d.stat().st_mtime) if base.exists() else []
-        if not dirs:
+    runs_dir = _resolve_runs_dir(base, experiment_id)
+    if runs_dir is None:
+        if experiment_id:
+            console.print(f"[red]Experiment not found:[/red] {experiment_id}")
+        else:
             console.print("[red]No experiments found.")
-            return
-        runs_dir = dirs[-1] / "runs"
+        return
 
     results = load_all_results(runs_dir)
     if not results:
@@ -265,16 +284,16 @@ def status(experiment_id: str | None, results_dir: str) -> None:
         return
 
     if experiment_id:
-        dirs = [base / experiment_id]
+        dirs = [base / experiment_id] if (base / experiment_id / "runs").exists() else []
     else:
-        dirs = sorted(base.iterdir(), key=lambda d: d.stat().st_mtime)
+        dirs = _experiment_dirs(base)
+
+    if not dirs:
+        console.print("[yellow]No experiments found.")
+        return
 
     for exp_dir in dirs:
-        if not exp_dir.is_dir():
-            continue
         runs_dir = exp_dir / "runs"
-        if not runs_dir.exists():
-            continue
 
         results = load_all_results(runs_dir)
         total = len(results)
@@ -296,15 +315,13 @@ def status(experiment_id: str | None, results_dir: str) -> None:
 def failures(experiment_id: str | None, results_dir: str) -> None:
     """Show details of failed runs for quick triage."""
     base = Path(results_dir)
-
-    if experiment_id:
-        runs_dir = base / experiment_id / "runs"
-    else:
-        dirs = sorted(base.iterdir(), key=lambda d: d.stat().st_mtime) if base.exists() else []
-        if not dirs:
+    runs_dir = _resolve_runs_dir(base, experiment_id)
+    if runs_dir is None:
+        if experiment_id:
+            console.print(f"[red]Experiment not found:[/red] {experiment_id}")
+        else:
             console.print("[red]No experiments found.")
-            return
-        runs_dir = dirs[-1] / "runs"
+        return
 
     results = load_all_results(runs_dir)
     failed = [r for r in results if r.passed is False]
@@ -325,8 +342,10 @@ def failures(experiment_id: str | None, results_dir: str) -> None:
             f" [{r.key.condition.value}/{r.key.thinking.value}/r{r.key.run_n}]"
         )
 
-        if r.error:
-            console.print(f"  [red]Error:[/red] {r.error}")
+        if r.generation_error:
+            console.print(f"  [red]Generation:[/red] {r.generation_error}")
+        if r.evaluation_error:
+            console.print(f"  [red]Evaluation:[/red] {r.evaluation_error}")
 
         # Show what extract_body + ensure_indented would produce
         imports, body = extract_body(r.completion)
