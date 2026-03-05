@@ -46,6 +46,20 @@ Older-generation model included to see how a previous Haiku holds up. Claude 3 H
 
 The generational gap is stark: Haiku 4.5 without thinking (95.8% pass@1) outperforms Haiku 3 by over 20 percentage points. Interestingly, the absurd persona hurts Haiku 3 noticeably (~6pp below baseline), suggesting older models are more susceptible to persona distractions. Mickey Mouse, on the other hand, edges out baseline slightly -- though this is likely noise at this sample size.
 
+### Claude 3 Haiku + APM OSS Architect (experimental)
+
+Model: `claude-3-haiku-20240307` | 164 HumanEval problems | 10 runs per condition | 4,920 total API calls | $1.61 total cost
+
+Testing the [APM OSS Architect](https://github.com/microsoft/apm/blob/main/.github/chatmodes/oss-architect.chatmode.md) chatmode from Microsoft's APM project. The system prompt includes the full chatmode persona, the [APM Manifesto](https://github.com/microsoft/apm/blob/main/MANIFESTO.md), and project context -- a much longer prompt (~770 input tokens vs ~210 for baseline).
+
+| Condition | Thinking | pass@1 | pass@5 | pass@10 | Avg In Tok | Avg Out Tok | Cost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | disabled | 72.7% | 77.0% | 78.7% | 209 | 197 | $0.49 |
+| apm_oss_architect | disabled | 73.4% | 77.4% | 79.3% | 773 | 142 | $0.61 |
+| mickey | disabled | 75.8% | 78.5% | 79.3% | 229 | 204 | $0.51 |
+
+The APM OSS Architect persona performs on par with baseline despite being ~3.7x more input tokens. The extra context (manifesto, project description) neither helps nor hurts code generation quality. Mickey Mouse continues to slightly edge out both, though the differences remain within noise. Notably, apm_oss_architect produces shorter outputs (142 avg tokens vs 197 for baseline), suggesting the verbose system prompt may cause the model to be more concise in its responses.
+
 ## Experimental Design
 
 ### Conditions
