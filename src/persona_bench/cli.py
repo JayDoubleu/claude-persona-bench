@@ -312,7 +312,8 @@ def status(experiment_id: str | None, results_dir: str) -> None:
 @main.command()
 @click.argument("experiment_id", required=False)
 @click.option("--results-dir", default="results/experiments", type=click.Path())
-def failures(experiment_id: str | None, results_dir: str) -> None:
+@click.option("--verify", is_flag=True, help="Re-run failures and canonicals through sandbox")
+def failures(experiment_id: str | None, results_dir: str, verify: bool) -> None:
     """Show details of failed runs for quick triage."""
     base = Path(results_dir)
     runs_dir = _resolve_runs_dir(base, experiment_id)
@@ -335,6 +336,30 @@ def failures(experiment_id: str | None, results_dir: str) -> None:
     # Load problems to show the prompt for context
     problems = load_problems(Path(".cache"))
     problem_map = {p.task_id: p for p in problems}
+
+    # When --verify is used, validate the canonical solution for each failing
+    # problem once, so pipeline bugs are easy to spot.
+    canonical_ok: dict[str, bool] = {}
+    if verify:
+        failing_ids = {r.key.task_id for r in failed}
+        console.print("[bold]Verifying canonical solutions...[/bold]")
+        for task_id in sorted(failing_ids):
+            problem = problem_map.get(task_id)
+            if not problem:
+                continue
+            canon_code = problem.prompt + problem.canonical_solution
+            ok, err = run_sandboxed(canon_code, problem.test, problem.entry_point)
+            canonical_ok[task_id] = ok
+            if not ok:
+                console.print(
+                    f"  [red bold]PIPELINE BUG:[/red bold] {task_id} canonical fails: {err}"
+                )
+            else:
+                console.print(f"  [green]{task_id}[/green] canonical OK")
+        console.print()
+
+    model_errors = 0
+    pipeline_bugs = 0
 
     for r in sorted(failed, key=lambda r: (r.key.task_id, r.key.condition.value)):
         console.print(
@@ -362,12 +387,36 @@ def failures(experiment_id: str | None, results_dir: str) -> None:
             except SyntaxError as e:
                 console.print(f"  [red]Syntax:[/red] {e}")
 
+            if verify:
+                # Re-run model output through sandbox
+                ok, err = run_sandboxed(full_code, problem.test, problem.entry_point)
+                if ok:
+                    console.print("  [yellow]Re-run:[/yellow] PASS (flaky failure?)")
+                else:
+                    console.print(f"  [red]Re-run:[/red] {err}")
+
+                # Classify based on canonical result
+                if r.key.task_id in canonical_ok:
+                    if canonical_ok[r.key.task_id]:
+                        console.print("  [dim]Verdict:[/dim] model error")
+                        model_errors += 1
+                    else:
+                        console.print("  [red bold]Verdict:[/red bold] PIPELINE BUG")
+                        pipeline_bugs += 1
+
         # Show first few lines of completion
         lines = r.completion.split("\n")
         preview = "\n".join(lines[:8])
         if len(lines) > 8:
             preview += f"\n    ... ({len(lines) - 8} more lines)"
         console.print(f"  [dim]Completion:[/dim]\n{preview}\n")
+
+    if verify:
+        console.print(
+            f"[bold]Summary:[/bold] {model_errors} model errors,"
+            f" {pipeline_bugs} pipeline bugs,"
+            f" {len(failed) - model_errors - pipeline_bugs} unclassified"
+        )
 
 
 if __name__ == "__main__":

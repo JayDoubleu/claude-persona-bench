@@ -30,9 +30,14 @@ _MODEL_PRICING: dict[str, tuple[float, float, float]] = {
     "claude-haiku-4-5": (1.0, 5.0, 5.0),
     "claude-opus-4-5": (5.0, 25.0, 25.0),
     "claude-sonnet-4-5": (3.0, 15.0, 15.0),
-    "claude-opus-4-1": (5.0, 25.0, 25.0),
-    "claude-opus-4-0": (5.0, 25.0, 25.0),
+    "claude-opus-4-1": (15.0, 75.0, 75.0),
+    "claude-opus-4-0": (15.0, 75.0, 75.0),
     "claude-sonnet-4-0": (3.0, 15.0, 15.0),
+    "claude-3-haiku": (0.25, 1.25, 0.0),
+    "claude-3-sonnet": (3.0, 15.0, 0.0),
+    "claude-3-opus": (15.0, 75.0, 0.0),
+    "claude-3-5-haiku": (0.8, 4.0, 0.0),
+    "claude-3-5-sonnet": (3.0, 15.0, 0.0),
 }
 
 # Models that support adaptive thinking (budget_tokens is deprecated)

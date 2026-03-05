@@ -47,11 +47,9 @@ class RunKey:
             raise ValueError(f"Invalid run filename: {name}")
 
         task_part = parts[0]
-        if task_part.startswith("task="):
-            task_id = unquote(task_part.removeprefix("task="))
-        else:
-            # Backward compatibility for pre-encoding filenames.
-            task_id = task_part.replace("_", "/", 1)
+        if not task_part.startswith("task="):
+            raise ValueError(f"Invalid run filename (expected task= prefix): {name}")
+        task_id = unquote(task_part.removeprefix("task="))
         return cls(
             task_id=task_id,
             condition=Condition(parts[1]),
@@ -96,22 +94,10 @@ class RunResult:
             "passed": self.passed,
             "generation_error": self.generation_error,
             "evaluation_error": self.evaluation_error,
-            # Keep a legacy aggregate field for older tooling.
-            "error": self.error,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RunResult:
-        generation_error = data.get("generation_error")
-        evaluation_error = data.get("evaluation_error")
-
-        legacy_error = data.get("error")
-        if generation_error is None and evaluation_error is None and legacy_error is not None:
-            if data.get("passed") is None or data.get("passed") is True:
-                generation_error = legacy_error
-            else:
-                evaluation_error = legacy_error
-
         key = RunKey(
             task_id=data["task_id"],
             condition=Condition(data["condition"]),
@@ -128,6 +114,6 @@ class RunResult:
             cost_usd=data.get("cost_usd", 0.0),
             duration_ms=data.get("duration_ms", 0),
             passed=data.get("passed"),
-            generation_error=generation_error,
-            evaluation_error=evaluation_error,
+            generation_error=data.get("generation_error"),
+            evaluation_error=data.get("evaluation_error"),
         )
