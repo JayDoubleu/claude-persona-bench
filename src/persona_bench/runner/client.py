@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import Any
 
 import anthropic
 
@@ -39,8 +40,12 @@ _ADAPTIVE_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6"}
 
 # Models that support budget_tokens thinking
 _BUDGET_THINKING_MODELS = {
-    "claude-opus-4-5", "claude-sonnet-4-5",
-    "claude-opus-4-1", "claude-opus-4-0", "claude-sonnet-4-0",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-opus-4-1",
+    "claude-opus-4-0",
+    "claude-sonnet-4-0",
+    "claude-haiku-4-5",
 }
 
 
@@ -57,6 +62,7 @@ def _supports_adaptive(model: str) -> bool:
 
 def _supports_budget_thinking(model: str) -> bool:
     return any(model.startswith(p) for p in _BUDGET_THINKING_MODELS)
+
 
 _client: anthropic.AsyncAnthropic | None = None
 
@@ -95,7 +101,10 @@ async def _call_with_retry(
             if attempt < MAX_RETRIES - 1:
                 logger.warning(
                     "Attempt %d/%d for %s: rate limited, retrying in %ds",
-                    attempt + 1, MAX_RETRIES, key.task_id, int(RATE_LIMIT_DELAY),
+                    attempt + 1,
+                    MAX_RETRIES,
+                    key.task_id,
+                    int(RATE_LIMIT_DELAY),
                 )
                 await asyncio.sleep(RATE_LIMIT_DELAY)
 
@@ -104,14 +113,19 @@ async def _call_with_retry(
             if e.status_code >= 500 and attempt < MAX_RETRIES - 1:
                 logger.warning(
                     "Attempt %d/%d for %s: server error %d, retrying",
-                    attempt + 1, MAX_RETRIES, key.task_id, e.status_code,
+                    attempt + 1,
+                    MAX_RETRIES,
+                    key.task_id,
+                    e.status_code,
                 )
                 await asyncio.sleep(BASE_RETRY_DELAY * (attempt + 1))
             elif e.status_code < 500:
                 # Client error (4xx), not retryable
                 logger.error("Client error for %s: %s", key.task_id, e)
                 return RunResult(
-                    key=key, completion="", raw_response="",
+                    key=key,
+                    completion="",
+                    raw_response="",
                     error=f"APIStatusError {e.status_code}: {e.message}",
                 )
 
@@ -120,7 +134,9 @@ async def _call_with_retry(
             if attempt < MAX_RETRIES - 1:
                 logger.warning(
                     "Attempt %d/%d for %s: connection error, retrying",
-                    attempt + 1, MAX_RETRIES, key.task_id,
+                    attempt + 1,
+                    MAX_RETRIES,
+                    key.task_id,
                 )
                 await asyncio.sleep(BASE_RETRY_DELAY * (attempt + 1))
 
@@ -128,13 +144,19 @@ async def _call_with_retry(
             last_error = e
             logger.warning(
                 "Attempt %d/%d for %s: %s: %s",
-                attempt + 1, MAX_RETRIES, key.task_id, type(e).__name__, e,
+                attempt + 1,
+                MAX_RETRIES,
+                key.task_id,
+                type(e).__name__,
+                e,
             )
             if attempt < MAX_RETRIES - 1:
                 await asyncio.sleep(BASE_RETRY_DELAY * (attempt + 1))
 
     return RunResult(
-        key=key, completion="", raw_response="",
+        key=key,
+        completion="",
+        raw_response="",
         error=f"All {MAX_RETRIES} attempts failed: {last_error}",
     )
 
@@ -146,7 +168,7 @@ async def _single_call(
 ) -> RunResult:
     system_prompt = get_system_prompt(key.condition)
 
-    kwargs: dict = {
+    kwargs: dict[str, Any] = {
         "model": config.model,
         "max_tokens": 1024,
         "system": system_prompt,
@@ -166,7 +188,7 @@ async def _single_call(
             }
         else:
             logger.warning(
-                "Model %s does not support thinking; ignoring thinking=enabled",
+                "Model %s does not support thinking; falling back to standard mode",
                 config.model,
             )
             kwargs["temperature"] = config.temperature
@@ -199,9 +221,7 @@ async def _single_call(
     # Cost calculation (model-aware)
     input_price, output_price, thinking_price = _get_pricing(config.model)
     cost = (
-        full_input * input_price
-        + output_tokens * output_price
-        + thinking_tokens * thinking_price
+        full_input * input_price + output_tokens * output_price + thinking_tokens * thinking_price
     ) / 1_000_000
 
     # Build error string if needed

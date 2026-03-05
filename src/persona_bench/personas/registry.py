@@ -25,9 +25,7 @@ _ABSURD_PREFIX = (
     "perfectly normal, correct Python."
 )
 
-_MICKEY_PREFIX = (
-    "You are Mickey Mouse living in Disneyland. You love cheese and roller coasters."
-)
+_MICKEY_PREFIX = "You are Mickey Mouse living in Disneyland. You love cheese and roller coasters."
 
 PERSONA_PROMPTS: dict[Condition, str] = {
     Condition.BASELINE: CODE_INSTRUCTION_SUFFIX,

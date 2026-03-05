@@ -28,5 +28,5 @@ def test_timeout():
 def test_blocked_import():
     code = "import os\ndef dangerous():\n    return os.listdir('.')\n"
     test = "def check(f):\n    f()\n"
-    passed, error = run_sandboxed(code, test, "dangerous")
+    passed, _error = run_sandboxed(code, test, "dangerous")
     assert passed is False

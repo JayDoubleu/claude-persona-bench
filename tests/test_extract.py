@@ -1,7 +1,7 @@
 from persona_bench.runner.extract import ensure_indented, extract_body, extract_code
 
-
 # --- extract_code tests ---
+
 
 def test_extract_raw_code():
     raw = "    return x + 1"
@@ -35,13 +35,10 @@ def test_extract_single_backtick_wrapping():
 
 # --- extract_body tests ---
 
+
 def test_extract_body_complete_function():
     """Extract body from a complete function with docstring."""
-    code = (
-        'def add(a, b):\n'
-        '    """Add two numbers."""\n'
-        '    return a + b'
-    )
+    code = 'def add(a, b):\n    """Add two numbers."""\n    return a + b'
     imports, body = extract_body(code)
     assert imports == ""
     assert body == "    return a + b"
@@ -50,12 +47,12 @@ def test_extract_body_complete_function():
 def test_extract_body_multiline_docstring():
     """Extract body from function with multi-line docstring."""
     code = (
-        'def parse(s: str) -> list:\n'
+        "def parse(s: str) -> list:\n"
         '    """Parse a string.\n'
-        '\n'
-        '    Returns a list.\n'
+        "\n"
+        "    Returns a list.\n"
         '    """\n'
-        '    return s.split()'
+        "    return s.split()"
     )
     imports, body = extract_body(code)
     assert imports == ""
@@ -64,10 +61,7 @@ def test_extract_body_multiline_docstring():
 
 def test_extract_body_no_docstring():
     """Extract body from function without docstring."""
-    code = (
-        'def add(a, b):\n'
-        '    return a + b'
-    )
+    code = "def add(a, b):\n    return a + b"
     imports, body = extract_body(code)
     assert imports == ""
     assert body == "    return a + b"
@@ -76,12 +70,12 @@ def test_extract_body_no_docstring():
 def test_extract_body_preserves_imports():
     """Imports before the def line are returned separately."""
     code = (
-        'from typing import List, Tuple\n'
-        'import math\n'
-        '\n'
-        'def sum_product(numbers: List[int]) -> Tuple[int, int]:\n'
+        "from typing import List, Tuple\n"
+        "import math\n"
+        "\n"
+        "def sum_product(numbers: List[int]) -> Tuple[int, int]:\n"
         '    """Return sum and product."""\n'
-        '    return (sum(numbers), math.prod(numbers))'
+        "    return (sum(numbers), math.prod(numbers))"
     )
     imports, body = extract_body(code)
     assert imports == "from typing import List, Tuple\nimport math\n"
@@ -91,11 +85,11 @@ def test_extract_body_preserves_imports():
 def test_extract_body_imports_assemble_correctly():
     """Imports go above the prompt, body goes inside it."""
     code = (
-        'import math\n'
-        '\n'
-        'def f(n: int) -> int:\n'
+        "import math\n"
+        "\n"
+        "def f(n: int) -> int:\n"
         '    """Compute factorial."""\n'
-        '    return math.factorial(n)'
+        "    return math.factorial(n)"
     )
     prompt = 'def f(n: int) -> int:\n    """Compute factorial."""\n'
 
@@ -103,10 +97,10 @@ def test_extract_body_imports_assemble_correctly():
     full_code = imports + prompt + ensure_indented(body)
 
     assert full_code == (
-        'import math\n'
-        'def f(n: int) -> int:\n'
+        "import math\n"
+        "def f(n: int) -> int:\n"
         '    """Compute factorial."""\n'
-        '    return math.factorial(n)'
+        "    return math.factorial(n)"
     )
     # Verify it compiles
     compile(full_code, "<test>", "exec")
@@ -123,20 +117,20 @@ def test_extract_body_already_body_only():
 def test_extract_body_multiline_body():
     """Extract multi-line body from complete function."""
     code = (
-        'def has_close_elements(numbers, threshold):\n'
+        "def has_close_elements(numbers, threshold):\n"
         '    """Check if any two numbers are closer than threshold."""\n'
-        '    for i in range(len(numbers)):\n'
-        '        for j in range(i + 1, len(numbers)):\n'
-        '            if abs(numbers[i] - numbers[j]) < threshold:\n'
-        '                return True\n'
-        '    return False'
+        "    for i in range(len(numbers)):\n"
+        "        for j in range(i + 1, len(numbers)):\n"
+        "            if abs(numbers[i] - numbers[j]) < threshold:\n"
+        "                return True\n"
+        "    return False"
     )
     expected = (
-        '    for i in range(len(numbers)):\n'
-        '        for j in range(i + 1, len(numbers)):\n'
-        '            if abs(numbers[i] - numbers[j]) < threshold:\n'
-        '                return True\n'
-        '    return False'
+        "    for i in range(len(numbers)):\n"
+        "        for j in range(i + 1, len(numbers)):\n"
+        "            if abs(numbers[i] - numbers[j]) < threshold:\n"
+        "                return True\n"
+        "    return False"
     )
     imports, body = extract_body(code)
     assert imports == ""
@@ -145,17 +139,14 @@ def test_extract_body_multiline_body():
 
 def test_extract_body_different_function_name():
     """Still works for any function name."""
-    code = (
-        'def multiply(a, b):\n'
-        '    """Multiply."""\n'
-        '    return a * b'
-    )
+    code = 'def multiply(a, b):\n    """Multiply."""\n    return a * b'
     imports, body = extract_body(code)
     assert imports == ""
     assert body == "    return a * b"
 
 
 # --- ensure_indented tests ---
+
 
 def test_ensure_indented_already_indented():
     code = "    return x + 1"

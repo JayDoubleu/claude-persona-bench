@@ -48,12 +48,14 @@ def render_console_table(results: list[RunResult], k_values: list[int] | None = 
         for k in k_values:
             rate = pr.get(f"pass@{k}", 0.0)
             row.append(f"{rate:.1%}")
-        row.extend([
-            f"{s.avg_input_tokens:.0f}",
-            f"{s.avg_output_tokens:.0f}",
-            f"${s.avg_cost_usd:.4f}",
-            f"${s.total_cost_usd:.2f}",
-        ])
+        row.extend(
+            [
+                f"{s.avg_input_tokens:.0f}",
+                f"{s.avg_output_tokens:.0f}",
+                f"${s.avg_cost_usd:.4f}",
+                f"${s.total_cost_usd:.2f}",
+            ]
+        )
         table.add_row(*row)
 
     console.print(table)
@@ -68,10 +70,15 @@ def export_csv(results: list[RunResult], path: Path, k_values: list[int] | None 
     pass_rates = compute_pass_rates(results, k_values)
 
     headers = [
-        "condition", "thinking", "runs", "evaluated",
+        "condition",
+        "thinking",
+        "runs",
+        "evaluated",
         *[f"pass@{k}" for k in k_values],
-        "avg_input_tokens", "avg_output_tokens",
-        "avg_cost_usd", "total_cost_usd",
+        "avg_input_tokens",
+        "avg_output_tokens",
+        "avg_cost_usd",
+        "total_cost_usd",
     ]
 
     with open(path, "w", newline="", encoding="utf-8") as f:
@@ -94,7 +101,11 @@ def export_csv(results: list[RunResult], path: Path, k_values: list[int] | None 
             writer.writerow(row)
 
 
-def export_markdown(results: list[RunResult], path: Path, k_values: list[int] | None = None) -> None:
+def export_markdown(
+    results: list[RunResult],
+    path: Path,
+    k_values: list[int] | None = None,
+) -> None:
     """Export results summary as a markdown table."""
     if k_values is None:
         k_values = [1]
@@ -103,9 +114,15 @@ def export_markdown(results: list[RunResult], path: Path, k_values: list[int] | 
     pass_rates = compute_pass_rates(results, k_values)
 
     headers = [
-        "Condition", "Thinking", "Runs", "Evaluated",
+        "Condition",
+        "Thinking",
+        "Runs",
+        "Evaluated",
         *[f"pass@{k}" for k in k_values],
-        "Avg In Tok", "Avg Out Tok", "Avg Cost $", "Total Cost $",
+        "Avg In Tok",
+        "Avg Out Tok",
+        "Avg Cost $",
+        "Total Cost $",
     ]
 
     lines = []

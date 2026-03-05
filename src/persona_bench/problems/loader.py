@@ -7,9 +7,7 @@ from pathlib import Path
 
 from persona_bench.models import Problem
 
-HUMANEVAL_URL = (
-    "https://github.com/openai/human-eval/raw/master/data/HumanEval.jsonl.gz"
-)
+HUMANEVAL_URL = "https://github.com/openai/human-eval/raw/master/data/HumanEval.jsonl.gz"
 CACHE_FILENAME = "HumanEval.jsonl.gz"
 
 
@@ -41,9 +39,7 @@ def parse_humaneval(path: Path) -> list[Problem]:
     return problems
 
 
-def load_problems(
-    cache_dir: Path, max_problems: int | None = None
-) -> list[Problem]:
+def load_problems(cache_dir: Path, max_problems: int | None = None) -> list[Problem]:
     """Download (if needed) and load HumanEval problems."""
     path = download_humaneval(cache_dir)
     problems = parse_humaneval(path)

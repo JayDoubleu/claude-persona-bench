@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class Condition(str, Enum):
+class Condition(StrEnum):
     BASELINE = "baseline"
     PROFESSIONAL = "professional"
     ABSURD = "absurd"
     MICKEY = "mickey"
 
 
-class ThinkingMode(str, Enum):
+class ThinkingMode(StrEnum):
     ENABLED = "enabled"
     DISABLED = "disabled"
 

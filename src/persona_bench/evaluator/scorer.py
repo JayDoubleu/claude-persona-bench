@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
+
 from persona_bench.models import Condition, RunResult, ThinkingMode
 
 
@@ -46,11 +47,7 @@ def compute_pass_rates(
 
     rates: dict[GroupKey, dict[str, float]] = {}
     for group in sorted(groups):
-        task_results = {
-            tid: outcomes
-            for (g, tid), outcomes in by_task.items()
-            if g == group
-        }
+        task_results = {tid: outcomes for (g, tid), outcomes in by_task.items() if g == group}
         if not task_results:
             continue
 

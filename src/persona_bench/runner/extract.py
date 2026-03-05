@@ -101,7 +101,4 @@ def ensure_indented(code: str, indent: str = "    ") -> str:
         return code
 
     # Add indent to all non-empty lines
-    return "\n".join(
-        indent + line if line.strip() else line
-        for line in lines
-    )
+    return "\n".join(indent + line if line.strip() else line for line in lines)

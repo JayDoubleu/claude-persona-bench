@@ -5,7 +5,7 @@ Benchmarking tool that tests whether system prompt personas affect Claude's code
 ## Setup
 
 ```bash
-pip install -e ".[dev]"
+uv sync
 ```
 
 ## Usage
@@ -34,12 +34,18 @@ persona-bench status       # Show experiment progress
 ## Development
 
 ```bash
-pytest
+uv run pytest               # Run tests
+uv run ruff check src/ tests/   # Lint
+uv run ruff format src/ tests/  # Format
+uv run mypy src/            # Type check
 ```
 
 ## Conventions
 
 - Python 3.11+
+- uv for dependency management
+- ruff for linting and formatting (line-length 100)
+- mypy strict mode for type checking
 - Async throughout the runner layer
 - One JSON file per run result for resumability
 - Results directory is gitignored

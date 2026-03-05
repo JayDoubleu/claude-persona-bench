@@ -63,7 +63,7 @@ Four system prompt personas are tested. Each includes a shared task instruction 
 ## Setup
 
 ```bash
-pip install -e ".[dev]"
+uv sync
 export ANTHROPIC_API_KEY="your-key"
 ```
 

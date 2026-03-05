@@ -8,21 +8,36 @@ TIMEOUT_SECONDS = 10
 # Builtins/modules to disable inside the sandbox
 _DISABLED_BUILTINS = ["exit", "quit"]
 _DISABLED_MODULES = [
-    "os", "shutil", "subprocess", "signal", "socket", "http",
-    "urllib", "ftplib", "smtplib", "webbrowser", "ctypes",
+    "os",
+    "shutil",
+    "subprocess",
+    "signal",
+    "socket",
+    "http",
+    "urllib",
+    "ftplib",
+    "smtplib",
+    "webbrowser",
+    "ctypes",
 ]
 
 # Python's exec() is used intentionally here to run HumanEval completions
 # inside an isolated subprocess with restricted builtins. This is the standard
 # approach for HumanEval evaluation and runs in a separate spawned process.
-_EXEC = exec  # noqa: S102
+_EXEC = exec
 
 
-def _run_in_sandbox(code: str, test: str, entry_point: str, result_queue: multiprocessing.Queue) -> None:  # type: ignore[type-arg]
+def _run_in_sandbox(
+    code: str,
+    test: str,
+    entry_point: str,
+    result_queue: multiprocessing.Queue,  # type: ignore[type-arg]
+) -> None:
     """Execute code + tests inside a restricted environment."""
     try:
         # Build restricted global namespace
-        safe_globals: dict[str, Any] = {"__builtins__": dict(__builtins__) if isinstance(__builtins__, dict) else vars(__builtins__)}
+        raw_builtins = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+        safe_globals: dict[str, Any] = {"__builtins__": dict(raw_builtins)}
 
         # Remove dangerous builtins
         for name in _DISABLED_BUILTINS:

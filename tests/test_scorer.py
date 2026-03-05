@@ -1,4 +1,4 @@
-from persona_bench.evaluator.scorer import pass_at_k, compute_pass_rates
+from persona_bench.evaluator.scorer import compute_pass_rates, pass_at_k
 from persona_bench.models import Condition, RunKey, RunResult, ThinkingMode
 
 
@@ -20,12 +20,14 @@ def test_compute_pass_rates():
     results = []
     for i in range(3):
         key = RunKey("HumanEval/0", Condition.BASELINE, ThinkingMode.DISABLED, i + 1)
-        results.append(RunResult(
-            key=key,
-            completion="x",
-            raw_response="x",
-            passed=(i < 2),  # 2 pass, 1 fail
-        ))
+        results.append(
+            RunResult(
+                key=key,
+                completion="x",
+                raw_response="x",
+                passed=(i < 2),  # 2 pass, 1 fail
+            )
+        )
 
     rates = compute_pass_rates(results, k_values=[1])
     group = (Condition.BASELINE, ThinkingMode.DISABLED)

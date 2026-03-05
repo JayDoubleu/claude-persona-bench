@@ -13,7 +13,6 @@ from rich.progress import Progress
 from persona_bench.config import ExperimentConfig
 from persona_bench.evaluator.sandbox import run_sandboxed
 from persona_bench.models import Condition, RunResult, ThinkingMode
-from persona_bench.runner.extract import ensure_indented, extract_body
 from persona_bench.problems.loader import load_problems
 from persona_bench.reporter.tables import (
     export_csv,
@@ -26,6 +25,7 @@ from persona_bench.results.store import (
     update_result,
 )
 from persona_bench.runner.engine import generate_all_keys, run_experiment
+from persona_bench.runner.extract import ensure_indented, extract_body
 
 console = Console()
 
@@ -42,7 +42,12 @@ def main() -> None:
 
 @main.command()
 @click.option("--model", default="claude-haiku-4-5", help="Model to use")
-@click.option("--temperature", default=0.2, type=float, help="Sampling temperature (ignored when thinking is enabled)")
+@click.option(
+    "--temperature",
+    default=0.2,
+    type=float,
+    help="Sampling temperature (ignored when thinking is enabled)",
+)
 @click.option(
     "--conditions",
     multiple=True,
@@ -145,7 +150,9 @@ def evaluate_cmd(experiment_id: str | None, results_dir: str, re_evaluate: bool)
                 r.error = None
                 update_result(runs_dir, r)
     unevaluated = [r for r in results if r.passed is None and not r.error]
-    console.print(f"[bold]Total results:[/bold] {len(results)}, [bold]To evaluate:[/bold] {len(unevaluated)}")
+    console.print(
+        f"[bold]Total results:[/bold] {len(results)}, [bold]To evaluate:[/bold] {len(unevaluated)}"
+    )
 
     if not unevaluated:
         console.print("[green]Nothing to evaluate.")
@@ -197,7 +204,11 @@ def evaluate_cmd(experiment_id: str | None, results_dir: str, re_evaluate: bool)
                     f"{'PASS' if ok else 'FAIL'}"
                 )
 
-    console.print(f"\n[bold]Evaluated:[/bold] {evaluated}, [green]Passed:[/green] {passed}, [red]Failed:[/red] {evaluated - passed}")
+    console.print(
+        f"\n[bold]Evaluated:[/bold] {evaluated},"
+        f" [green]Passed:[/green] {passed},"
+        f" [red]Failed:[/red] {evaluated - passed}"
+    )
 
 
 @main.command()
@@ -309,7 +320,10 @@ def failures(experiment_id: str | None, results_dir: str) -> None:
     problem_map = {p.task_id: p for p in problems}
 
     for r in sorted(failed, key=lambda r: (r.key.task_id, r.key.condition.value)):
-        console.print(f"[bold]{r.key.task_id}[/bold] [{r.key.condition.value}/{r.key.thinking.value}/r{r.key.run_n}]")
+        console.print(
+            f"[bold]{r.key.task_id}[/bold]"
+            f" [{r.key.condition.value}/{r.key.thinking.value}/r{r.key.run_n}]"
+        )
 
         if r.error:
             console.print(f"  [red]Error:[/red] {r.error}")
