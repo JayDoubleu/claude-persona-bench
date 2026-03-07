@@ -7,7 +7,7 @@ from collections.abc import Callable
 from persona_bench.config import ExperimentConfig
 from persona_bench.models import Problem, RunKey, RunResult
 from persona_bench.results.store import get_completed_keys, save_result
-from persona_bench.runner.client import call_claude
+from persona_bench.runner.client import call_model
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ async def run_experiment(
     results: list[RunResult] = []
 
     async def process_one(problem: Problem, key: RunKey) -> RunResult:
-        result = await call_claude(problem, key, config, semaphore)
+        result = await call_model(problem, key, config, semaphore)
         save_result(runs_dir, result)
         if on_complete:
             on_complete(result)

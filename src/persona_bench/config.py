@@ -28,7 +28,7 @@ class ExperimentConfig:
         cond_names = "+".join(sorted(c.value for c in self.conditions))
         think_names = "+".join(sorted(t.value for t in self.thinking_modes))
         parts = [
-            self.model.replace("-", ""),
+            self.model.replace("/", "_").replace("-", ""),
             cond_names,
             think_names,
             f"{self.runs_per_combination}runs",

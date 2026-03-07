@@ -5,6 +5,9 @@ import re
 
 def extract_code(raw: str) -> str:
     """Extract Python code from a response, stripping markdown fences if present."""
+    # Strip <think>...</think> blocks (e.g., Qwen3 inline reasoning)
+    raw = re.sub(r"<think>.*?</think>\s*", "", raw, flags=re.DOTALL)
+
     # Try triple-backtick markdown fences
     match = re.search(r"```(?:python)?\s*\n(.*?)```", raw, re.DOTALL)
     if match:
