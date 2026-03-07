@@ -4,6 +4,8 @@ Does the system prompt persona affect how well LLMs write code? This tool benchm
 
 **TL;DR: Personas don't matter. Thinking mode does.**
 
+![HumanEval pass@1 by Model and Persona](docs/pass_at_1_chart.png)
+
 ## Results
 
 ### Claude Haiku 4.5 (Anthropic)
