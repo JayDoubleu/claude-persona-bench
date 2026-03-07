@@ -1,6 +1,6 @@
 # persona-bench
 
-Does the system prompt persona affect how well LLMs write code? This tool benchmarks code generation quality on [HumanEval](https://github.com/openai/human-eval) (164 problems) across different system prompt personas, thinking/reasoning modes, and LLM providers.
+Does the system prompt persona affect how well LLMs write code? This tool benchmarks code generation quality on [HumanEval](https://github.com/openai/human-eval) (164 problems) across different system prompt personas, thinking/reasoning modes, and LLM providers (Anthropic, Groq, OpenAI).
 
 **TL;DR: Personas don't matter. Thinking mode does.**
 
@@ -56,6 +56,31 @@ Model: `groq/qwen/qwen3-32b` | 164 HumanEval problems | 10 runs per combination 
 
 **Output tokens are ~10x higher than Haiku** due to Qwen3's verbose inline reasoning, though Groq's lower per-token pricing keeps total costs comparable ($23 vs $57).
 
+### GPT-4.1 (OpenAI, no thinking)
+
+Model: `openai/gpt-4.1-2025-04-14` | 164 HumanEval problems | 10 runs per condition | 6,560 total API calls | $13 total cost
+
+GPT-4.1 does not support reasoning mode, so only `disabled` mode was tested.
+
+#### pass@k by Condition and Thinking Mode
+
+| Condition | Thinking | pass@1 | pass@5 | pass@10 | Avg In Tok | Avg Out Tok | Cost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | disabled | 96.8% | 98.2% | 98.8% | 191 | 192 | $3.14 |
+| professional | disabled | 95.7% | 97.1% | 97.6% | 227 | 195 | $3.30 |
+| absurd | disabled | 96.2% | 97.4% | 97.6% | 294 | 190 | $3.46 |
+| mickey | disabled | 96.2% | 97.1% | 97.6% | 207 | 191 | $3.19 |
+
+#### Key Findings
+
+**GPT-4.1 matches Haiku 4.5 without thinking** (95.7-96.8% pass@1 vs 95.2-96.5%), placing it in the same tier as other frontier models on HumanEval without reasoning.
+
+**Personas remain irrelevant.** All four conditions stay within a ~1.1pp band for pass@1, consistent with results from other models.
+
+**Very token-efficient.** GPT-4.1 averages ~190 output tokens per problem, comparable to Haiku 4.5's ~250, and far below Qwen3's ~2,800. At $2/M input and $8/M output tokens, total cost of $13 for 6,560 calls sits between Haiku ($57 with thinking) and Groq ($23 with thinking).
+
+**No reasoning mode available.** Unlike the o-series models (o1, o3, o4-mini), GPT-4.1 does not support `reasoning.effort`, so the potential boost from structured reasoning could not be tested here.
+
 ### Claude 3 Haiku (Anthropic, legacy, no thinking)
 
 Model: `claude-3-haiku-20240307` | 164 HumanEval problems | 10 runs per condition | 6,560 total API calls | $1.94 total cost
@@ -95,6 +120,7 @@ Four system prompt personas are tested. Each includes a shared task instruction 
 - **Enabled**: Extended thinking / reasoning. Provider-specific implementation:
   - **Anthropic**: `temperature=1` (required by API), adaptive thinking on Opus/Sonnet 4.6, budget_tokens on older models
   - **Groq**: `reasoning_effort` parameter on supported models (e.g., Qwen3)
+  - **OpenAI**: `reasoning={"effort": "medium"}` on supported models (o-series: o1, o3, o4-mini)
 
 ### Methodology
 
@@ -102,7 +128,7 @@ Four system prompt personas are tested. Each includes a shared task instruction 
 - **Runs**: 10 per combination (4 conditions x 2 thinking modes = 80 runs per problem)
 - **Scoring**: Unbiased pass@k estimator from [Chen et al. (2021)](https://arxiv.org/abs/2107.03374)
 - **Evaluation**: Each completion is executed in a sandboxed subprocess against HumanEval's test assertions
-- **Providers**: Anthropic (Claude), Groq (Llama, Qwen, etc.)
+- **Providers**: Anthropic (Claude), Groq (Llama, Qwen, etc.), OpenAI (GPT)
 
 ## Supported Providers
 
@@ -110,6 +136,7 @@ Four system prompt personas are tested. Each includes a shared task instruction 
 | --- | --- | --- | --- |
 | Anthropic | `anthropic` | Claude Haiku/Sonnet/Opus | `ANTHROPIC_API_KEY` |
 | Groq | `groq` | Llama, Qwen, Gemma, etc. | `GROQ_API_KEY` |
+| OpenAI | `openai` | GPT-4.1, GPT-4o, etc. | `OPENAI_API_KEY` |
 
 ## Setup
 
@@ -117,6 +144,7 @@ Four system prompt personas are tested. Each includes a shared task instruction 
 uv sync
 export ANTHROPIC_API_KEY="your-key"   # for Anthropic models
 export GROQ_API_KEY="your-key"        # for Groq models
+export OPENAI_API_KEY="your-key"      # for OpenAI models
 ```
 
 ## Usage
@@ -133,6 +161,11 @@ uv run persona-bench report --k 1 --k 5 --k 10
 
 # Groq (13,120 calls with both thinking modes)
 uv run persona-bench run --model groq/qwen/qwen3-32b --runs 10
+uv run persona-bench evaluate
+uv run persona-bench report --k 1 --k 5 --k 10
+
+# OpenAI (6,560 calls, thinking disabled only for GPT-4.1)
+uv run persona-bench run --model openai/gpt-4.1-2025-04-14 --runs 10 --thinking disabled
 uv run persona-bench evaluate
 uv run persona-bench report --k 1 --k 5 --k 10
 ```
@@ -171,6 +204,7 @@ src/persona_bench/
     client.py             Provider dispatch + shared utilities
     anthropic.py          Anthropic (Claude) provider
     groq.py               Groq provider
+    openai.py             OpenAI provider
     engine.py             Async orchestrator
     extract.py            Code extraction from model responses
   evaluator/

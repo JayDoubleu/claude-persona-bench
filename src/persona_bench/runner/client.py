@@ -36,7 +36,13 @@ def parse_model(model: str) -> tuple[str, str]:
     """
     if model.startswith("groq/"):
         return ("groq", model.removeprefix("groq/"))
+    if model.startswith("openai/"):
+        return ("openai", model.removeprefix("openai/"))
     return ("anthropic", model)
+
+
+# OpenAI models that support reasoning (o-series)
+_OPENAI_REASONING_MODELS = {"o1", "o3", "o4-mini"}
 
 
 def supports_thinking(model: str) -> bool:
@@ -44,7 +50,9 @@ def supports_thinking(model: str) -> bool:
     provider_id, bare_model = parse_model(model)
     if provider_id == "anthropic":
         return _supports_adaptive(bare_model) or _supports_budget_thinking(bare_model)
-    # For non-Anthropic providers, let the API decide
+    if provider_id == "openai":
+        return any(bare_model.startswith(p) for p in _OPENAI_REASONING_MODELS)
+    # For non-Anthropic/OpenAI providers, let the API decide
     return True
 
 
@@ -88,6 +96,11 @@ async def call_model(
         from persona_bench.runner.groq import call_groq
 
         return await call_groq(problem, key, config, semaphore)
+
+    if provider_id == "openai":
+        from persona_bench.runner.openai import call_openai
+
+        return await call_openai(problem, key, config, semaphore)
 
     from persona_bench.runner.anthropic import call_anthropic
 

@@ -1,6 +1,6 @@
 # persona-bench
 
-Benchmarking tool that tests whether system prompt personas affect LLM code generation quality on HumanEval problems. Supports multiple providers (Anthropic, Groq).
+Benchmarking tool that tests whether system prompt personas affect LLM code generation quality on HumanEval problems. Supports multiple providers (Anthropic, Groq, OpenAI).
 
 ## Setup
 
@@ -20,6 +20,7 @@ uv run persona-bench status       # Show experiment progress
 # Provider routing via model name prefix:
 uv run persona-bench run --model claude-haiku-4-5       # Anthropic (default, no prefix)
 uv run persona-bench run --model groq/qwen/qwen3-32b    # Groq
+uv run persona-bench run --model openai/gpt-4.1          # OpenAI
 ```
 
 ## Project Structure
@@ -34,6 +35,7 @@ uv run persona-bench run --model groq/qwen/qwen3-32b    # Groq
     - `client.py` - Dispatcher (`call_model`), `parse_model`, `supports_thinking`, `compute_cost` (via `genai-prices`)
     - `anthropic.py` - Anthropic provider (`call_anthropic`)
     - `groq.py` - Groq provider (`call_groq`)
+    - `openai.py` - OpenAI provider (`call_openai`)
     - `engine.py` - Experiment orchestrator
     - `extract.py` - Code extraction from LLM responses
   - `evaluator/` - Sandboxed code execution and pass@k scoring

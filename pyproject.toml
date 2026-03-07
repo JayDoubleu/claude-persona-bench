@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "anthropic>=0.52",
     "groq>=0.26",
+    "openai>=1.0",
     "genai-prices>=0.0.1",
     "click>=8.0",
     "rich>=13.0",
@@ -52,7 +53,7 @@ warn_return_any = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["anthropic.*", "groq.*", "genai_prices.*"]
+module = ["anthropic.*", "groq.*", "openai.*", "genai_prices.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
